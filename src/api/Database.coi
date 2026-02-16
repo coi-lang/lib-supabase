@@ -148,7 +148,7 @@ pub component Database(
         lastResponse = "";
 
         string url = "${baseUrl}/rest/v1/${currentTable}?${queryParams}";
-        FetchRequest.post(url, jsonData, &onUpdateSuccess, &onUpdateError);
+        FetchRequest.patch(url, jsonData, &onUpdateSuccess, &onUpdateError);
     }
 
     pub def updateWhereEq(string table, string column, string value, string jsonData) : void {

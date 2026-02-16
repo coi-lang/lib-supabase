@@ -207,13 +207,6 @@ storage.from("avatars");
 string publicUrl = storage.getPublicUrl("user-123.png");
 System.log(publicUrl);
 ```
-
-## Notes
-
-- This library currently exposes async results through state fields like `lastResponse` and `lastError`.
-- `Database.update(...)` currently uses POST in this implementation.
-- Provide your Supabase **publishable/anon key**, never your service role key in client-side apps.
-
 ## Development
 
 With your Coi app set up in the same workspace, build as usual:
