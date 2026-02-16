@@ -1,6 +1,14 @@
+<div align="center">
+	<img src="images/logo.png" alt="lib-supabase Logo" width="265"/>
+
 # lib-supabase
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 Supabase client library for [Coi](https://github.com/io-eric/coi).
+
+</div>
 
 This package gives you:
 
