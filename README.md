@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-Supabase client library for [Coi](https://github.com/io-eric/coi).
+Client library for [Supabase](https://supabase.com/) in [Coi](https://github.com/io-eric/coi).
 
 </div>
 
