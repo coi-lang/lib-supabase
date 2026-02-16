@@ -10,7 +10,7 @@ Supabase client library for [Coi](https://github.com/io-eric/coi).
 
 </div>
 
-This libary gives you:
+This library gives you:
 
 - `Supabase::Credentials` for shared project configuration
 - `Supabase::Auth` for sign-in, sign-up, OAuth, and password reset
