@@ -19,11 +19,10 @@ This package gives you:
 
 ## Install
 
-Copy this package to `.coi/pkgs/supabase` in your project:
+Install from the Coi registry:
 
 ```bash
-mkdir -p .coi/pkgs
-cp -r /path/to/lib-supabase .coi/pkgs/supabase
+coi add supabase
 ```
 
 Then import it:
