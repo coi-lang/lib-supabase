@@ -1,7 +1,7 @@
 <div align="center">
 	<img src="images/logo.svg" alt="coi-supabase Logo" width="360"/>
 
-# coi-supabase
+# Supabase for Coi
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
