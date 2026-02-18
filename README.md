@@ -22,7 +22,7 @@ This package gives you:
 Install from the Coi registry:
 
 ```bash
-coi add supabase
+coi add @coi/supabase
 ```
 
 Then import it:
