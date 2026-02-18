@@ -13,8 +13,8 @@
         "min-drop": 350
       },
       "source": {
-        "commit": "9accf4a2af32134fbadbe7d924577e018697d298",
-        "sha256": "8fde3f16957b376c7ca6d92126cea682d00c38fdd69f3189711dd163ff714c69"
+        "commit": "a9f9a5b77006dbfbd30fe7227f87098b1e36250f",
+        "sha256": "d8c8427edbf17e607f0a178775ebdb4079f17e1943a9112d36282ad43aed27e9"
       },
       "releasedAt": "2026-02-16"
     }
