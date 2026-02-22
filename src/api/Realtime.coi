@@ -11,10 +11,12 @@ import "Credentials.coi";
 // Usage:
 //   Credentials credentials = Credentials("https://xxx.supabase.co", "publishable-key");
 //   mut Realtime realtime = Realtime(credentials);
+//   realtime.onEvent(&handleRealtimeEvent);
+//   realtime.onError(&handleRealtimeError);
 //   realtime.subscribeToTable("public", "messages", "*");
 
 pub component Realtime(
-Credentials credentials
+    Credentials credentials
 ) {
     mut string baseUrl = credentials.url;
     mut string apiKey = credentials.publishableKey;
@@ -24,11 +26,28 @@ Credentials credentials
     mut string currentTopic = "";
     mut string pendingJoinPayload = "";
 
+    mut def eventHandler(string) : void = handleNoopEvent;
+    mut def errorHandler(string) : void = handleNoopError;
+
     pub mut bool connected = false;
     pub mut bool loading = false;
     pub mut int eventCount = 0;
     pub mut string lastEvent = "";
     pub mut string lastError = "";
+
+    def handleNoopEvent(string message) : void {
+    }
+
+    def handleNoopError(string error) : void {
+    }
+
+    pub def onEvent(def handler(string) : void) : void {
+        eventHandler = handler;
+    }
+
+    pub def onError(def handler(string) : void) : void {
+        errorHandler = handler;
+    }
 
     pub def configure(string newSupabaseUrl, string newPublishableKey) : void {
         disconnect();
@@ -44,6 +63,8 @@ Credentials credentials
         currentTopic = "";
         pendingJoinPayload = "";
         nextRef = 1;
+        eventHandler = handleNoopEvent;
+        errorHandler = handleNoopError;
     }
 
     pub def configureCredentials(Credentials credentials) : void {
@@ -99,17 +120,22 @@ Credentials credentials
         socket.send(payload);
     }
 
+    def emitError(string error) : void {
+        lastError = error;
+        errorHandler(error);
+    }
+
     def sendHeartbeat() : void {
         if (!connected) {
             return;
         }
 
         string payload = `{
-            "topic":"phoenix",
-            "event":"heartbeat",
-            "payload":{},
-            "ref":"${nextRefString()}"
-        }`;
+"topic":"phoenix",
+"event":"heartbeat",
+"payload":{},
+"ref":"${nextRefString()}"
+}`;
         sendJson(payload);
     }
 
@@ -122,13 +148,13 @@ Credentials credentials
     }
 
     pub def connect() : void {
-        if (connected |  | loading) {
+        if (connected || loading) {
             return;
         }
 
         string realtimeUrl = buildRealtimeUrl();
         if (realtimeUrl.isEmpty()) {
-            lastError = "Supabase URL is empty";
+            emitError("Supabase URL is empty");
             System.error(lastError);
             return;
         }
@@ -137,11 +163,11 @@ Credentials credentials
         lastError = "";
 
         socket = WebSocket.connect(
-        realtimeUrl,
-        &onMessage = onSocketMessage,
-        &onOpen = onSocketOpen,
-        &onClose = onSocketClose,
-        &onError = onSocketError
+            realtimeUrl,
+            &onMessage = onSocketMessage,
+            &onOpen = onSocketOpen,
+            &onClose = onSocketClose,
+            &onError = onSocketError
         );
     }
 
@@ -149,11 +175,11 @@ Credentials credentials
         if (socket.isConnected()) {
             if (!currentTopic.isEmpty() && connected) {
                 string leavePayload = `{
-                    "topic":"${currentTopic}",
-                    "event":"phx_leave",
-                    "payload":{},
-                    "ref":"${nextRefString()}"
-                }`;
+"topic":"${currentTopic}",
+"event":"phx_leave",
+"payload":{},
+"ref":"${nextRefString()}"
+}`;
                 sendJson(leavePayload);
             }
             socket.close();
@@ -165,8 +191,8 @@ Credentials credentials
     }
 
     pub def subscribeToTable(string schema, string table, string event) : void {
-        if (schema.isEmpty() |  | table.isEmpty()) {
-            lastError = "Schema and table are required";
+        if (schema.isEmpty() || table.isEmpty()) {
+            emitError("Schema and table are required");
             System.error(lastError);
             return;
         }
@@ -178,21 +204,21 @@ Credentials credentials
 
         currentTopic = "realtime:${schema}:${table}";
         pendingJoinPayload = `{
-            "topic":"${currentTopic}",
-            "event":"phx_join",
-            "payload":{
-                "config":{
-                    "postgres_changes":[{
-                        "event":"${filterEvent}",
-                        "schema":"${schema}",
-                        "table":"${table}"
-                    }],
-                    "broadcast":{__PROTECTED_1__:false},
-                    "presence":{__PROTECTED_1__:__PROTECTED_2__}
-                }
-            },
-            "ref":"${nextRefString()}"
-        }`;
+"topic":"${currentTopic}",
+"event":"phx_join",
+"payload":{
+    "config":{
+        "postgres_changes":[{
+            "event":"${filterEvent}",
+            "schema":"${schema}",
+            "table":"${table}"
+        }],
+        "broadcast":{"self":false},
+        "presence":{"key":""}
+    }
+},
+"ref":"${nextRefString()}"
+}`;
 
         if (!connected) {
             connect();
@@ -203,18 +229,18 @@ Credentials credentials
     }
 
     pub def unsubscribe() : void {
-        if (currentTopic.isEmpty() |  | !connected) {
+        if (currentTopic.isEmpty() || !connected) {
             currentTopic = "";
             pendingJoinPayload = "";
             return;
         }
 
         string leavePayload = `{
-            "topic":"${currentTopic}",
-            "event":"phx_leave",
-            "payload":{},
-            "ref":"${nextRefString()}"
-        }`;
+"topic":"${currentTopic}",
+"event":"phx_leave",
+"payload":{},
+"ref":"${nextRefString()}"
+}`;
 
         sendJson(leavePayload);
         currentTopic = "";
@@ -250,7 +276,7 @@ Credentials credentials
     def onSocketError() : void {
         connected = false;
         loading = false;
-        lastError = "Realtime WebSocket error";
+        emitError("Realtime WebSocket error");
         System.error(lastError);
     }
 
@@ -258,12 +284,13 @@ Credentials credentials
         lastEvent = message;
         eventCount += 1;
 
-        if (message.contains("\"status\":\"error\"") |  | message.contains("\"error\"")) {
-            lastError = message;
+        if (message.contains("\"status\":\"error\"") || message.contains("\"error\"")) {
+            emitError(message);
             System.error("Realtime event error payload");
             return;
         }
 
         lastError = "";
+        eventHandler(message);
     }
 }

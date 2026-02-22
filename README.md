@@ -65,7 +65,7 @@ Use one credentials object and pass it to all clients.
 
 ## Auth API
 
-Create client:
+Create a client:
 
 ```coi
 mut Supabase::Auth auth = Supabase::Auth(creds);
@@ -75,7 +75,6 @@ Main methods:
 
 - `signUp(email, password)`
 - `signIn(email, password)`
-- `signInWithPassword(email, password)`
 - `signInWithOAuth(provider, redirectTo)`
 - `resetPassword(email)`
 - `signOut()`
@@ -108,7 +107,7 @@ if (!auth.lastError.isEmpty()) {
 
 ## Database API
 
-Create client:
+Create a client:
 
 ```coi
 mut Supabase::Database db = Supabase::Database(creds);
@@ -179,7 +178,7 @@ State fields:
 
 ## Storage API
 
-Create client:
+Create a client:
 
 ```coi
 mut Supabase::StorageClient storage = Supabase::StorageClient(creds);
@@ -216,7 +215,7 @@ System.log(publicUrl);
 
 ## Realtime API
 
-Create client:
+Create a client:
 
 ```coi
 mut Supabase::Realtime realtime = Supabase::Realtime(creds);
@@ -230,6 +229,8 @@ Main methods:
 - `subscribeToTable(schema, table, event)`
 - `unsubscribe()`
 - `ping()`
+- `onEvent(handler)`
+- `onError(handler)`
 - `configure(url, publishableKey)`
 - `configureCredentials(credentials)`
 
@@ -244,17 +245,19 @@ State fields:
 Example:
 
 ```coi
+def handleRealtimeEvent(string payload) : void {
+	System.log(payload);
+}
+
+def handleRealtimeError(string error) : void {
+	System.error(error);
+}
+
+realtime.onEvent(&handleRealtimeEvent);
+realtime.onError(&handleRealtimeError);
+
 // Subscribe to all row changes in public.messages
 realtime.subscribeToTable("public", "messages", "*");
-
-if (!realtime.lastError.isEmpty()) {
-	System.error(realtime.lastError);
-}
-
-// Realtime payloads arrive in realtime.lastEvent
-if (!realtime.lastEvent.isEmpty()) {
-	System.log(realtime.lastEvent);
-}
 ```
 
 Event filter examples for `subscribeToTable`:
@@ -265,6 +268,176 @@ Event filter examples for `subscribeToTable`:
 - `"DELETE"`
 
 > Note: Enable Realtime for your table in Supabase first, otherwise no row-change events will be emitted.
+
+## Examples by API
+
+### 1) Credentials (shared setup)
+
+```coi
+import "@coi/supabase";
+
+module App;
+
+mut Supabase::Credentials creds = Supabase::Credentials(
+	"https://your-project.supabase.co",
+	"your-publishable-key"
+);
+
+mut Supabase::Auth auth = Supabase::Auth(creds);
+mut Supabase::Database db = Supabase::Database(creds);
+mut Supabase::StorageClient storage = Supabase::StorageClient(creds);
+mut Supabase::Realtime realtime = Supabase::Realtime(creds);
+```
+
+### 2) Auth (sign up, sign in, oauth, reset, sign out)
+
+```coi
+import "@coi/supabase";
+
+module App;
+
+component AuthDemo {
+	mut Supabase::Credentials creds = Supabase::Credentials(
+		"https://your-project.supabase.co",
+		"your-publishable-key"
+	);
+	mut Supabase::Auth auth = Supabase::Auth(creds);
+
+	def run() : void {
+		auth.signUp("new-user@example.com", "password123");
+		auth.signIn("new-user@example.com", "password123");
+
+		auth.signInWithOAuth("github", "http://localhost:8000/auth/callback");
+		auth.resetPassword("new-user@example.com");
+
+		if (!auth.lastError.isEmpty()) {
+			System.error(auth.lastError);
+		}
+
+		if (auth.isAuthenticated()) {
+			System.log("Signed in");
+			System.log(auth.getAccessToken());
+		}
+
+		auth.signOut();
+	}
+}
+```
+
+### 3) Database (select, filters, insert, update)
+
+```coi
+import "@coi/supabase";
+
+module App;
+
+component DatabaseDemo {
+	mut Supabase::Credentials creds = Supabase::Credentials(
+		"https://your-project.supabase.co",
+		"your-publishable-key"
+	);
+	mut Supabase::Database db = Supabase::Database(creds);
+
+	def run() : void {
+		// Simple one-liner query
+		db.selectFrom("users", "id,name,email", 10);
+
+		// Builder query with filters/modifiers
+		db.from("users");
+		db.ilike("email", "%@example.com");
+		db.order("id", true);
+		db.limit(5);
+		db.select("id,name,email");
+
+		// Insert row
+		db.insertInto("users", `{"name":"Ava","email":"ava@example.com"}`);
+
+		// Update row (where id == 1)
+		db.updateWhereEq("users", "id", "1", `{"name":"Ava Updated"}`);
+
+		if (!db.lastError.isEmpty()) {
+			System.error(db.lastError);
+		} else {
+			System.log(db.lastResponse);
+		}
+	}
+}
+```
+
+### 4) Storage (public urls, list, download, remove, signed url)
+
+```coi
+import "@coi/supabase";
+
+module App;
+
+component StorageDemo {
+	mut Supabase::Credentials creds = Supabase::Credentials(
+		"https://your-project.supabase.co",
+		"your-publishable-key"
+	);
+	mut Supabase::StorageClient storage = Supabase::StorageClient(creds);
+
+	def run() : void {
+		storage.from("avatars");
+
+		string url = storage.getPublicUrl("users/user-1.png");
+		System.log(url);
+
+		storage.list("users");
+		storage.download("users/user-1.png");
+		storage.createSignedUrl("users/user-1.png", 3600);
+		storage.remove("users/user-1.png");
+
+		// One-call helper
+		string sameUrl = storage.publicUrl("avatars", "users/user-2.png");
+		System.log(sameUrl);
+
+		if (!storage.lastError.isEmpty()) {
+			System.error(storage.lastError);
+		} else {
+			System.log(storage.lastResponse);
+		}
+	}
+}
+```
+
+### 5) Realtime (live row updates)
+
+```coi
+import "@coi/supabase";
+
+module App;
+
+component RealtimeDemo {
+	mut Supabase::Credentials creds = Supabase::Credentials(
+		"https://your-project.supabase.co",
+		"your-publishable-key"
+	);
+	mut Supabase::Realtime realtime = Supabase::Realtime(creds);
+
+	def handleRealtimeEvent(string payload) : void {
+		System.log(payload);
+	}
+
+	def handleRealtimeError(string error) : void {
+		System.error(error);
+	}
+
+	mount {
+		realtime.onEvent(&handleRealtimeEvent);
+		realtime.onError(&handleRealtimeError);
+
+		// Subscribe to all changes on public.messages
+		realtime.subscribeToTable("public", "messages", "*");
+	}
+
+	def cleanup() : void {
+		realtime.unsubscribe();
+		realtime.disconnect();
+	}
+}
+```
 
 ## Development
 
