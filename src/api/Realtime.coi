@@ -26,8 +26,8 @@ pub component Realtime(
     mut string currentTopic = "";
     mut string pendingJoinPayload = "";
 
-    mut def eventHandler(string) : void = handleNoopEvent;
-    mut def errorHandler(string) : void = handleNoopError;
+    mut def eventHandler(string) : void = &handleNoopEvent;
+    mut def errorHandler(string) : void = &handleNoopError;
 
     pub mut bool connected = false;
     pub mut bool loading = false;
