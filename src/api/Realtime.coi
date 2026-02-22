@@ -63,8 +63,8 @@ pub component Realtime(
         currentTopic = "";
         pendingJoinPayload = "";
         nextRef = 1;
-        eventHandler = handleNoopEvent;
-        errorHandler = handleNoopError;
+        eventHandler = &handleNoopEvent;
+        errorHandler = &handleNoopError;
     }
 
     pub def configureCredentials(Credentials credentials) : void {
