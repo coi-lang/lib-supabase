@@ -54,9 +54,24 @@ pub component Database(
     }
 
     def hasErrorPayload(string response) : bool {
-        return response.contains("\"error\"")
-            || response.contains("\"code\"")
-            || response.contains("\"message\"");
+        string trimmed = response.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+
+        if (trimmed.charAt(0) != 123) {
+            return false;
+        }
+
+        bool hasMessage = trimmed.contains("\"message\":");
+        bool hasCode = trimmed.contains("\"code\":");
+        bool hasError = trimmed.contains("\"error\":") || trimmed.contains("\"error_description\":");
+
+        return hasError || (hasMessage && hasCode);
+    }
+
+    def requestHeaders() : string {
+        return `{"apikey":"${apiKey}","Authorization":"Bearer ${apiKey}","Content-Type":"application/json"}`;
     }
 
     // Set the table to query
@@ -74,7 +89,7 @@ pub component Database(
         lastResponse = "";
 
         string url = "${baseUrl}/rest/v1/${currentTable}?select=${columns}${queryParams}";
-        FetchRequest.get(url, &onSelectSuccess, &onSelectError);
+        FetchRequest.get(url, requestHeaders(), &onSelectSuccess, &onSelectError);
     }
 
     pub def selectFrom(string table, string columns, int count) : void {
@@ -113,7 +128,7 @@ pub component Database(
         lastResponse = "";
 
         string url = "${baseUrl}/rest/v1/${currentTable}";
-        FetchRequest.post(url, jsonData, &onInsertSuccess, &onInsertError);
+        FetchRequest.post(url, jsonData, requestHeaders(), &onInsertSuccess, &onInsertError);
     }
 
     pub def insertInto(string table, string jsonData) : void {
@@ -150,7 +165,7 @@ pub component Database(
         lastResponse = "";
 
         string url = "${baseUrl}/rest/v1/${currentTable}?${queryParams}";
-        FetchRequest.patch(url, jsonData, &onUpdateSuccess, &onUpdateError);
+        FetchRequest.patch(url, jsonData, requestHeaders(), &onUpdateSuccess, &onUpdateError);
     }
 
     pub def updateWhereEq(string table, string column, string value, string jsonData) : void {

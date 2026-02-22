@@ -16,7 +16,7 @@ import "Credentials.coi";
 //   realtime.subscribeToTable("public", "messages", "*");
 
 pub component Realtime(
-    Credentials credentials
+Credentials credentials
 ) {
     mut string baseUrl = credentials.url;
     mut string apiKey = credentials.publishableKey;
@@ -131,11 +131,11 @@ pub component Realtime(
         }
 
         string payload = `{
-"topic":"phoenix",
-"event":"heartbeat",
-"payload":{},
-"ref":"${nextRefString()}"
-}`;
+            "topic":"phoenix",
+            "event":"heartbeat",
+            "payload":{},
+            "ref":"${nextRefString()}"
+        }`;
         sendJson(payload);
     }
 
@@ -163,11 +163,11 @@ pub component Realtime(
         lastError = "";
 
         socket = WebSocket.connect(
-            realtimeUrl,
-            &onMessage = onSocketMessage,
-            &onOpen = onSocketOpen,
-            &onClose = onSocketClose,
-            &onError = onSocketError
+        realtimeUrl,
+        &onMessage = onSocketMessage,
+        &onOpen = onSocketOpen,
+        &onClose = onSocketClose,
+        &onError = onSocketError
         );
     }
 
@@ -175,11 +175,11 @@ pub component Realtime(
         if (socket.isConnected()) {
             if (!currentTopic.isEmpty() && connected) {
                 string leavePayload = `{
-"topic":"${currentTopic}",
-"event":"phx_leave",
-"payload":{},
-"ref":"${nextRefString()}"
-}`;
+                    "topic":"${currentTopic}",
+                    "event":"phx_leave",
+                    "payload":{},
+                    "ref":"${nextRefString()}"
+                }`;
                 sendJson(leavePayload);
             }
             socket.close();
@@ -204,21 +204,21 @@ pub component Realtime(
 
         currentTopic = "realtime:${schema}:${table}";
         pendingJoinPayload = `{
-"topic":"${currentTopic}",
-"event":"phx_join",
-"payload":{
-    "config":{
-        "postgres_changes":[{
-            "event":"${filterEvent}",
-            "schema":"${schema}",
-            "table":"${table}"
-        }],
-        "broadcast":{"self":false},
-        "presence":{"key":""}
-    }
-},
-"ref":"${nextRefString()}"
-}`;
+            "topic":"${currentTopic}",
+            "event":"phx_join",
+            "payload":{
+                "config":{
+                    "postgres_changes":[{
+                        "event":"${filterEvent}",
+                        "schema":"${schema}",
+                        "table":"${table}"
+                    }],
+                    "broadcast":{__PROTECTED_1__:false},
+                    "presence":{__PROTECTED_1__:__PROTECTED_2__}
+                }
+            },
+            "ref":"${nextRefString()}"
+        }`;
 
         if (!connected) {
             connect();
@@ -236,11 +236,11 @@ pub component Realtime(
         }
 
         string leavePayload = `{
-"topic":"${currentTopic}",
-"event":"phx_leave",
-"payload":{},
-"ref":"${nextRefString()}"
-}`;
+            "topic":"${currentTopic}",
+            "event":"phx_leave",
+            "payload":{},
+            "ref":"${nextRefString()}"
+        }`;
 
         sendJson(leavePayload);
         currentTopic = "";
@@ -284,9 +284,9 @@ pub component Realtime(
         lastEvent = message;
         eventCount += 1;
 
-        if (message.contains("\"status\":\"error\"") || message.contains("\"error\"")) {
+        if (message.contains("\"status\":\"error\"") || message.contains("\"event\":\"phx_error\"")) {
             emitError(message);
-            System.error("Realtime event error payload");
+            System.error("Realtime event error payload" + message);
             return;
         }
 

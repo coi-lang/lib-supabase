@@ -39,9 +39,24 @@ pub component StorageClient(
     }
 
     def hasErrorPayload(string response) : bool {
-        return response.contains("\"error\"")
-            || response.contains("\"code\"")
-            || response.contains("\"message\"");
+        string trimmed = response.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+
+        if (trimmed.charAt(0) != 123) {
+            return false;
+        }
+
+        bool hasMessage = trimmed.contains("\"message\":");
+        bool hasCode = trimmed.contains("\"code\":");
+        bool hasError = trimmed.contains("\"error\":") || trimmed.contains("\"error_description\":");
+
+        return hasError || (hasMessage && hasCode);
+    }
+
+    def requestHeaders() : string {
+        return `{"apikey":"${apiKey}","Authorization":"Bearer ${apiKey}","Content-Type":"application/json"}`;
     }
 
     // Set the bucket to operate on
@@ -68,7 +83,7 @@ pub component StorageClient(
         lastResponse = "";
 
         string url = "${baseUrl}/storage/v1/object/${currentBucket}/${path}";
-        FetchRequest.get(url, &onDownloadSuccess, &onDownloadError);
+        FetchRequest.get(url, requestHeaders(), &onDownloadSuccess, &onDownloadError);
     }
 
     def onDownloadSuccess(string response) : void {
@@ -100,7 +115,7 @@ pub component StorageClient(
 
         string url = "${baseUrl}/storage/v1/object/list/${currentBucket}";
         string body = `{"prefix": "${path}"}`;
-        FetchRequest.post(url, body, &onListSuccess, &onListError);
+        FetchRequest.post(url, body, requestHeaders(), &onListSuccess, &onListError);
     }
 
     pub def listFrom(string bucket, string path) : void {
@@ -137,7 +152,7 @@ pub component StorageClient(
 
         string url = "${baseUrl}/storage/v1/object/${currentBucket}";
         string body = `{"prefixes": ["${path}"]}`;
-        FetchRequest.post(url, body, &onRemoveSuccess, &onRemoveError);
+        FetchRequest.post(url, body, requestHeaders(), &onRemoveSuccess, &onRemoveError);
     }
 
     pub def removeFrom(string bucket, string path) : void {
@@ -175,7 +190,7 @@ pub component StorageClient(
 
         string url = "${baseUrl}/storage/v1/object/sign/${currentBucket}/${path}";
         string body = `{"expiresIn": ${expiresIn}}`;
-        FetchRequest.post(url, body, &onSignedUrlSuccess, &onSignedUrlError);
+        FetchRequest.post(url, body, requestHeaders(), &onSignedUrlSuccess, &onSignedUrlError);
     }
 
     pub def createSignedUrlFrom(string bucket, string path, int expiresIn) : void {

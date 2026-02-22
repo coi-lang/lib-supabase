@@ -73,10 +73,20 @@ pub component Auth(
     }
 
     def hasErrorPayload(string response) : bool {
-        return response.contains("\"error\"")
-            || response.contains("\"error_description\"")
-            || response.contains("\"code\"")
-            || response.contains("\"message\"");
+        string trimmed = response.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+
+        if (trimmed.charAt(0) != 123) {
+            return false;
+        }
+
+        bool hasMessage = trimmed.contains("\"message\":");
+        bool hasCode = trimmed.contains("\"code\":");
+        bool hasError = trimmed.contains("\"error\":") || trimmed.contains("\"error_description\":");
+
+        return hasError || (hasMessage && hasCode);
     }
 
     def withApiKey(string url) : string {
@@ -89,6 +99,10 @@ pub component Auth(
         return "${url}?apikey=${apiKey}";
     }
 
+    def authHeaders() : string {
+        return `{"apikey":"${apiKey}","Authorization":"Bearer ${apiKey}","Content-Type":"application/json"}`;
+    }
+
     // Sign up with email and password
     pub def signUp(
         string email,
@@ -98,10 +112,10 @@ pub component Auth(
         lastError = "";
         lastResponse = "";
 
-        string url = withApiKey("${baseUrl}/auth/v1/signup");
+        string url = "${baseUrl}/auth/v1/signup";
         string body = `{"email": "${email}", "password": "${password}"}`;
 
-        FetchRequest.post(url, body, &onSignUpSuccess, &onSignUpError);
+        FetchRequest.post(url, body, authHeaders(), &onSignUpSuccess, &onSignUpError);
     }
 
     def onSignUpSuccess(string response) : void {
@@ -136,10 +150,10 @@ pub component Auth(
         lastError = "";
         lastResponse = "";
 
-        string url = withApiKey("${baseUrl}/auth/v1/token?grant_type=password");
+        string url = "${baseUrl}/auth/v1/token?grant_type=password";
         string body = `{"email": "${email}", "password": "${password}"}`;
 
-        FetchRequest.post(url, body, &onSignInSuccess, &onSignInError);
+        FetchRequest.post(url, body, authHeaders(), &onSignInSuccess, &onSignInError);
     }
 
     def onSignInSuccess(string response) : void {
@@ -193,10 +207,10 @@ pub component Auth(
         loading = true;
         lastError = "";
         lastResponse = "";
-        string url = withApiKey("${baseUrl}/auth/v1/recover");
+        string url = "${baseUrl}/auth/v1/recover";
         string body = `{"email": "${email}"}`;
 
-        FetchRequest.post(url, body, &onResetSuccess, &onResetError);
+        FetchRequest.post(url, body, authHeaders(), &onResetSuccess, &onResetError);
     }
 
     def onResetSuccess(string response) : void {
