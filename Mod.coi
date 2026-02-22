@@ -27,3 +27,4 @@ pub import "src/api/Credentials.coi";
 pub import "src/api/Auth.coi";
 pub import "src/api/Database.coi";
 pub import "src/api/Storage.coi";
+pub import "src/api/Realtime.coi";

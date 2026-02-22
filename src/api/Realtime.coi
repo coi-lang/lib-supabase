@@ -1,0 +1,269 @@
+module Supabase;
+
+import "Credentials.coi";
+
+// =========================================================
+// Realtime - Supabase Realtime (Postgres changes)
+// =========================================================
+// Subscribe to INSERT/UPDATE/DELETE events from Supabase
+// Realtime channels over WebSocket.
+//
+// Usage:
+//   Credentials credentials = Credentials("https://xxx.supabase.co", "publishable-key");
+//   mut Realtime realtime = Realtime(credentials);
+//   realtime.subscribeToTable("public", "messages", "*");
+
+pub component Realtime(
+Credentials credentials
+) {
+    mut string baseUrl = credentials.url;
+    mut string apiKey = credentials.publishableKey;
+
+    mut WebSocket socket;
+    mut int nextRef = 1;
+    mut string currentTopic = "";
+    mut string pendingJoinPayload = "";
+
+    pub mut bool connected = false;
+    pub mut bool loading = false;
+    pub mut int eventCount = 0;
+    pub mut string lastEvent = "";
+    pub mut string lastError = "";
+
+    pub def configure(string newSupabaseUrl, string newPublishableKey) : void {
+        disconnect();
+
+        baseUrl = newSupabaseUrl;
+        apiKey = newPublishableKey;
+
+        loading = false;
+        connected = false;
+        eventCount = 0;
+        lastEvent = "";
+        lastError = "";
+        currentTopic = "";
+        pendingJoinPayload = "";
+        nextRef = 1;
+    }
+
+    pub def configureCredentials(Credentials credentials) : void {
+        configure(credentials.url, credentials.publishableKey);
+    }
+
+    def normalizedBaseUrl() : string {
+        mut string normalized = baseUrl.trim();
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        int lastIndex = normalized.length() - 1;
+        if (lastIndex >= 0 && normalized.charAt(lastIndex) == 47) {
+            normalized = normalized.subStr(0, lastIndex);
+        }
+
+        return normalized;
+    }
+
+    def toWebSocketBase(string url) : string {
+        if (url.contains("https://")) {
+            return "wss://${url.subStr(8)}";
+        }
+
+        if (url.contains("http://")) {
+            return "ws://${url.subStr(7)}";
+        }
+
+        return url;
+    }
+
+    def buildRealtimeUrl() : string {
+        string normalized = normalizedBaseUrl();
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        string wsBase = toWebSocketBase(normalized);
+        return "${wsBase}/realtime/v1/websocket?apikey=${apiKey}&vsn=1.0.0";
+    }
+
+    def nextRefString() : string {
+        string ref = "${nextRef}";
+        nextRef += 1;
+        return ref;
+    }
+
+    def sendJson(string payload) : void {
+        if (!socket.isConnected()) {
+            return;
+        }
+        socket.send(payload);
+    }
+
+    def sendHeartbeat() : void {
+        if (!connected) {
+            return;
+        }
+
+        string payload = `{
+            "topic":"phoenix",
+            "event":"heartbeat",
+            "payload":{},
+            "ref":"${nextRefString()}"
+        }`;
+        sendJson(payload);
+    }
+
+    def joinCurrentTopic() : void {
+        if (pendingJoinPayload.isEmpty()) {
+            return;
+        }
+
+        sendJson(pendingJoinPayload);
+    }
+
+    pub def connect() : void {
+        if (connected |  | loading) {
+            return;
+        }
+
+        string realtimeUrl = buildRealtimeUrl();
+        if (realtimeUrl.isEmpty()) {
+            lastError = "Supabase URL is empty";
+            System.error(lastError);
+            return;
+        }
+
+        loading = true;
+        lastError = "";
+
+        socket = WebSocket.connect(
+        realtimeUrl,
+        &onMessage = onSocketMessage,
+        &onOpen = onSocketOpen,
+        &onClose = onSocketClose,
+        &onError = onSocketError
+        );
+    }
+
+    pub def disconnect() : void {
+        if (socket.isConnected()) {
+            if (!currentTopic.isEmpty() && connected) {
+                string leavePayload = `{
+                    "topic":"${currentTopic}",
+                    "event":"phx_leave",
+                    "payload":{},
+                    "ref":"${nextRefString()}"
+                }`;
+                sendJson(leavePayload);
+            }
+            socket.close();
+        }
+
+        connected = false;
+        loading = false;
+        currentTopic = "";
+    }
+
+    pub def subscribeToTable(string schema, string table, string event) : void {
+        if (schema.isEmpty() |  | table.isEmpty()) {
+            lastError = "Schema and table are required";
+            System.error(lastError);
+            return;
+        }
+
+        mut string filterEvent = event;
+        if (filterEvent.isEmpty()) {
+            filterEvent = "*";
+        }
+
+        currentTopic = "realtime:${schema}:${table}";
+        pendingJoinPayload = `{
+            "topic":"${currentTopic}",
+            "event":"phx_join",
+            "payload":{
+                "config":{
+                    "postgres_changes":[{
+                        "event":"${filterEvent}",
+                        "schema":"${schema}",
+                        "table":"${table}"
+                    }],
+                    "broadcast":{__PROTECTED_1__:false},
+                    "presence":{__PROTECTED_1__:__PROTECTED_2__}
+                }
+            },
+            "ref":"${nextRefString()}"
+        }`;
+
+        if (!connected) {
+            connect();
+            return;
+        }
+
+        joinCurrentTopic();
+    }
+
+    pub def unsubscribe() : void {
+        if (currentTopic.isEmpty() |  | !connected) {
+            currentTopic = "";
+            pendingJoinPayload = "";
+            return;
+        }
+
+        string leavePayload = `{
+            "topic":"${currentTopic}",
+            "event":"phx_leave",
+            "payload":{},
+            "ref":"${nextRefString()}"
+        }`;
+
+        sendJson(leavePayload);
+        currentTopic = "";
+        pendingJoinPayload = "";
+    }
+
+    pub def reconnect() : void {
+        disconnect();
+        connect();
+    }
+
+    pub def ping() : void {
+        sendHeartbeat();
+    }
+
+    def onSocketOpen() : void {
+        connected = true;
+        loading = false;
+        lastError = "";
+
+        System.log("Supabase Realtime connected");
+
+        joinCurrentTopic();
+        sendHeartbeat();
+    }
+
+    def onSocketClose() : void {
+        connected = false;
+        loading = false;
+        System.log("Supabase Realtime disconnected");
+    }
+
+    def onSocketError() : void {
+        connected = false;
+        loading = false;
+        lastError = "Realtime WebSocket error";
+        System.error(lastError);
+    }
+
+    def onSocketMessage(string message) : void {
+        lastEvent = message;
+        eventCount += 1;
+
+        if (message.contains("\"status\":\"error\"") |  | message.contains("\"error\"")) {
+            lastError = message;
+            System.error("Realtime event error payload");
+            return;
+        }
+
+        lastError = "";
+    }
+}

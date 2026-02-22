@@ -16,6 +16,7 @@ This package gives you:
 - `Supabase::Auth` for sign-in, sign-up, OAuth, and password reset
 - `Supabase::Database` for fluent PostgREST queries
 - `Supabase::StorageClient` for storage URLs, listing, downloads, remove, and signed URLs
+- `Supabase::Realtime` for live Postgres change subscriptions over WebSocket
 
 ## Install
 
@@ -46,6 +47,7 @@ mut Supabase::Credentials creds = Supabase::Credentials(
 mut Supabase::Auth auth = Supabase::Auth(creds);
 mut Supabase::Database db = Supabase::Database(creds);
 mut Supabase::StorageClient storage = Supabase::StorageClient(creds);
+mut Supabase::Realtime realtime = Supabase::Realtime(creds);
 ```
 
 ## Core Types
@@ -211,6 +213,59 @@ storage.from("avatars");
 string publicUrl = storage.getPublicUrl("user-123.png");
 System.log(publicUrl);
 ```
+
+## Realtime API
+
+Create client:
+
+```coi
+mut Supabase::Realtime realtime = Supabase::Realtime(creds);
+```
+
+Main methods:
+
+- `connect()`
+- `disconnect()`
+- `reconnect()`
+- `subscribeToTable(schema, table, event)`
+- `unsubscribe()`
+- `ping()`
+- `configure(url, publishableKey)`
+- `configureCredentials(credentials)`
+
+State fields:
+
+- `connected`
+- `loading`
+- `eventCount`
+- `lastEvent`
+- `lastError`
+
+Example:
+
+```coi
+// Subscribe to all row changes in public.messages
+realtime.subscribeToTable("public", "messages", "*");
+
+if (!realtime.lastError.isEmpty()) {
+	System.error(realtime.lastError);
+}
+
+// Realtime payloads arrive in realtime.lastEvent
+if (!realtime.lastEvent.isEmpty()) {
+	System.log(realtime.lastEvent);
+}
+```
+
+Event filter examples for `subscribeToTable`:
+
+- `"*"` (all events)
+- `"INSERT"`
+- `"UPDATE"`
+- `"DELETE"`
+
+> Note: Enable Realtime for your table in Supabase first, otherwise no row-change events will be emitted.
+
 ## Development
 
 With your Coi app set up in the same workspace, build as usual:
